@@ -21,7 +21,6 @@ import static org.bukkit.Bukkit.getServer;
 public class 杀戮光环 implements Listener {
 
     private final Anticheat plugin;
-
     private final Map<Player, NPC> npcMap = new HashMap<>();
     private final Map<Player, Integer> vlMap = new HashMap<>();
     private final Map<Player, Long> lastAttackMap = new HashMap<>();
@@ -42,6 +41,8 @@ public class 杀戮光环 implements Listener {
 
         if (CitizensAPI.getNPCRegistry().isNPC(event.getEntity())) {
             NPC npc = CitizensAPI.getNPCRegistry().getNPC(event.getEntity());
+            if (npc == null) return;
+
             if (npcMap.containsKey(attacker) && npcMap.get(attacker).getId() == npc.getId()) {
                 int vl = vlMap.getOrDefault(attacker, 0) +
                         plugin.getConfig().getInt("detection.killaura.dummy-hit-vl", 1);
@@ -50,9 +51,7 @@ public class 杀戮光环 implements Listener {
                 String alert = "§d[Neko反作弊] §f玩家 §c" + attacker.getName()
                         + " §f触发 §6杀戮光环检测§f，目前 §dVL §f= §c" + vl + " §7/ §a" + limit;
 
-                sendColoredMessage(new String[]{
-                        "§f玩家 §c" + attacker.getName() + " §f触发 §6杀戮光环检测§f，目前 §dVL §f= §c" + vl + " §7/ §a" + limit
-                });
+                sendColoredMessage(new String[]{alert});
 
                 for (Player admin : Bukkit.getOnlinePlayers()) {
                     if (admin.hasPermission("nac.admin")) {
@@ -86,14 +85,10 @@ public class 杀戮光环 implements Listener {
     public void spawnBackNpc(Player player, String npcName) {
         if (npcMap.containsKey(player)) return;
 
-        // 🚫 锁死出生点 16 格内不创建假人
+        // 出生点保护（不生成假人）
         Location spawn = player.getWorld().getSpawnLocation();
-        int protectChunkRadius = plugin.getConfig().getInt("detection.killaura.spawn-protect-radius", 1);
-        int blockRadius = protectChunkRadius * 16;
-        if (player.getLocation().distanceSquared(spawn) < blockRadius * blockRadius) {
-            return;
-        }
-
+        int radius = plugin.getConfig().getInt("detection.killaura.spawn-protect-radius", 1) * 16;
+        if (player.getLocation().distanceSquared(spawn) < radius * radius) return;
 
         NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, npcName);
         npc.setProtected(true);
@@ -115,12 +110,15 @@ public class 杀戮光环 implements Listener {
                 spawnLoc.setY(base.getY());
                 spawnLoc.setDirection(player.getLocation().toVector().subtract(spawnLoc.toVector()));
 
-                // ✅ 安全：检查区块是否加载
-                Chunk chunk = spawnLoc.getChunk();
-                if (!chunk.isLoaded()) return;
+                if (!spawnLoc.getChunk().isLoaded()) return;
 
                 if (!npc.isSpawned()) {
-                    npc.spawn(spawnLoc);
+                    try {
+                        npc.spawn(spawnLoc);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("NPC 生成失败：" + e.getMessage());
+                        return;
+                    }
 
                     if (npc.getEntity() instanceof Player npcEntity) {
                         for (Player online : Bukkit.getOnlinePlayers()) {
