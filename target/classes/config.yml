@@ -1,0 +1,27 @@
+# 反作弊插件配置文件
+
+# 调试模式
+debug: false
+
+# 白名单物品，针对非原版装备和方块
+whitelist:
+  # 方块
+  blocks:
+    - techreborn:launchpad #科技复兴“发射台”
+  # 物品或者装备
+  items:
+    - techreborn:quantum_chestplate #科技复兴“量子胸甲”
+
+detection:
+  #飞行检测
+  fly:
+    enabled: true
+    vl-limit: 25 # 最大vl值。vl值到达这个数值后执行下方指令
+    vl: 30 # 每隔多少秒降低1vl值
+    command: "ban {player} 检测到恶意飞行行为！ 3d"
+  # 杀戮光环
+  killaura:
+    enabled: true
+    vl-limit: 5
+    vl: 5
+    command: "ban {player} 检测到杀戮光环行为！ 3d"

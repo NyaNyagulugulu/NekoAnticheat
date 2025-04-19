@@ -3,7 +3,6 @@ package neko.anticheat.check;
 import neko.anticheat.Anticheat;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
-import net.citizensnpcs.trait.Invisible;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -42,18 +41,16 @@ public class 杀戮光环 implements Listener {
 
         if (CitizensAPI.getNPCRegistry().isNPC(event.getEntity())) {
             NPC npc = CitizensAPI.getNPCRegistry().getNPC(event.getEntity());
-            if (npc == null) return;
-
             if (npcMap.containsKey(attacker) && npcMap.get(attacker).getId() == npc.getId()) {
-                int vl = vlMap.getOrDefault(attacker, 0) +
-                        plugin.getConfig().getInt("detection.killaura.dummy-hit-vl", 1);
+                int vl = vlMap.getOrDefault(attacker, 0)
+                        + plugin.getConfig().getInt("detection.killaura.dummy-hit-vl", 1);
                 vlMap.put(attacker, vl);
+
                 int limit = plugin.getConfig().getInt("detection.killaura.vl-limit", 5);
                 String alert = "§d[Neko反作弊] §f玩家 §c" + attacker.getName()
                         + " §f触发 §6杀戮光环检测§f，目前 §dVL §f= §c" + vl + " §7/ §a" + limit;
 
                 sendColoredMessage(new String[]{alert});
-
                 for (Player admin : Bukkit.getOnlinePlayers()) {
                     if (admin.hasPermission("nac.admin")) {
                         admin.sendMessage(alert);
@@ -88,10 +85,7 @@ public class 杀戮光环 implements Listener {
 
         NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, npcName);
         npc.setProtected(true);
-        npc.data().setPersistent("nameplate-visible", false);
-        npc.data().setPersistent("remove-from-player-list", true);
-        npc.getOrAddTrait(Invisible.class); // 隐身
-
+        npc.data().setPersistent("nameplate-visible", false); // 隐藏名字
         npcMap.put(player, npc);
 
         BukkitRunnable task = new BukkitRunnable() {
@@ -111,11 +105,11 @@ public class 杀戮光环 implements Listener {
 
                 if (!spawnLoc.getChunk().isLoaded()) return;
 
-                try {
-                    if (!npc.isSpawned()) {
+                if (!npc.isSpawned()) {
+                    try {
                         npc.spawn(spawnLoc);
-
                         if (npc.getEntity() instanceof Player npcEntity) {
+                            npcEntity.setInvisible(true); // ✅ 让NPC实体完全隐身
                             for (Player online : Bukkit.getOnlinePlayers()) {
                                 if (!online.equals(player)) {
                                     online.hidePlayer(plugin, npcEntity);
@@ -124,12 +118,11 @@ public class 杀戮光环 implements Listener {
                                 }
                             }
                         }
-                    } else {
-                        npc.getEntity().teleport(spawnLoc);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("无法生成杀戮光环 NPC: " + e.getMessage());
                     }
-                } catch (Exception e) {
-                    plugin.getLogger().warning("❌ NPC生成失败: " + e.getMessage());
-                    cancel();
+                } else {
+                    npc.getEntity().teleport(spawnLoc);
                 }
             }
         };

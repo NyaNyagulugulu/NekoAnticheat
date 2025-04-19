@@ -44,7 +44,7 @@
     <!-- Citizens API (包含 Invisible Trait 所需类) -->
     <dependency>
       <groupId>net.citizensnpcs</groupId>
-      <artifactId>citizens-api</artifactId>
+      <artifactId>citizens-main</artifactId>
       <version>2.0.30-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
