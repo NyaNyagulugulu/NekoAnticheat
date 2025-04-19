@@ -3,6 +3,7 @@ package neko.anticheat.check;
 import neko.anticheat.Anticheat;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPC;
+import net.citizensnpcs.trait.Invisible;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
@@ -85,14 +86,12 @@ public class 杀戮光环 implements Listener {
     public void spawnBackNpc(Player player, String npcName) {
         if (npcMap.containsKey(player)) return;
 
-        // 出生点保护（不生成假人）
-        Location spawn = player.getWorld().getSpawnLocation();
-        int radius = plugin.getConfig().getInt("detection.killaura.spawn-protect-radius", 1) * 16;
-        if (player.getLocation().distanceSquared(spawn) < radius * radius) return;
-
         NPC npc = CitizensAPI.getNPCRegistry().createNPC(EntityType.PLAYER, npcName);
         npc.setProtected(true);
-        npc.data().setPersistent("nameplate-visible", true);
+        npc.data().setPersistent("nameplate-visible", false);
+        npc.data().setPersistent("remove-from-player-list", true);
+        npc.getOrAddTrait(Invisible.class); // 隐身
+
         npcMap.put(player, npc);
 
         BukkitRunnable task = new BukkitRunnable() {
@@ -112,25 +111,25 @@ public class 杀戮光环 implements Listener {
 
                 if (!spawnLoc.getChunk().isLoaded()) return;
 
-                if (!npc.isSpawned()) {
-                    try {
+                try {
+                    if (!npc.isSpawned()) {
                         npc.spawn(spawnLoc);
-                    } catch (Exception e) {
-                        plugin.getLogger().warning("NPC 生成失败：" + e.getMessage());
-                        return;
-                    }
 
-                    if (npc.getEntity() instanceof Player npcEntity) {
-                        for (Player online : Bukkit.getOnlinePlayers()) {
-                            if (!online.equals(player)) {
-                                online.hidePlayer(plugin, npcEntity);
-                            } else {
-                                online.showPlayer(plugin, npcEntity);
+                        if (npc.getEntity() instanceof Player npcEntity) {
+                            for (Player online : Bukkit.getOnlinePlayers()) {
+                                if (!online.equals(player)) {
+                                    online.hidePlayer(plugin, npcEntity);
+                                } else {
+                                    online.showPlayer(plugin, npcEntity);
+                                }
                             }
                         }
+                    } else {
+                        npc.getEntity().teleport(spawnLoc);
                     }
-                } else {
-                    npc.getEntity().teleport(spawnLoc);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("❌ NPC生成失败: " + e.getMessage());
+                    cancel();
                 }
             }
         };

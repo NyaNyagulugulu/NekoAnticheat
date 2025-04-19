@@ -25,4 +25,3 @@ detection:
     vl-limit: 5
     vl: 5
     command: "ban {player} 检测到杀戮光环行为！ 3d"
-    spawn-protect-radius: 16  # 出生点一定距离内不执行杀戮检测，防止空指针(单位区块)
