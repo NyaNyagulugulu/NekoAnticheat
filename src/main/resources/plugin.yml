@@ -2,7 +2,8 @@ name: NekoAnticheat
 version: 1.0
 main: neko.anticheat.Anticheat
 api-version: 1.21
-softdepend: [Citizens]
+# 去你妈的不依赖了
+# softdepend: [Citizens]
 
 commands:
   nac:
