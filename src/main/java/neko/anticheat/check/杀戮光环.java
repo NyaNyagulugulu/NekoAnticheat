@@ -15,16 +15,19 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.bukkit.Bukkit.getServer;
 
 public class 杀戮光环 implements Listener {
 
+    // 修复操你妈的空指针
+    //Failed to handle packet net.minecraft.class_2828$class_2830@79ed87d4, suppressing error java.util.ConcurrentModificationException: null
     private final Anticheat plugin;
-    private final Map<Player, NPC> npcMap = new HashMap<>();
-    private final Map<Player, Integer> vlMap = new HashMap<>();
-    private final Map<Player, Long> lastAttackMap = new HashMap<>();
-    private final Map<Player, BukkitRunnable> followTasks = new HashMap<>();
+    private final ConcurrentHashMap<Player, NPC> npcMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Player, Integer> vlMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Player, Long> lastAttackMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Player, BukkitRunnable> followTasks = new ConcurrentHashMap<>();
 
     public 杀戮光环(Anticheat plugin) {
         this.plugin = plugin;
