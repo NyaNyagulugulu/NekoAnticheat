@@ -9,6 +9,3 @@ commands:
   nac:
     description: 配置重载
     usage: /nac reload 或
-  dummy:
-    description: 创建假人
-    usage: /nac dummy <玩家名>

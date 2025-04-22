@@ -11,6 +11,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,10 +23,8 @@ public class 杀戮光环 implements Listener {
     private final Anticheat plugin;
     private final ConcurrentHashMap<Player, Integer> vlMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Player, Long> lastAttackMap = new ConcurrentHashMap<>();
-    private final Map<String, Deque<Long>> attackHistory = new HashMap<>();
-    private final Map<String, String> lastTargetMap = new HashMap<>();
     private final Map<String, Float> lastYawMap = new HashMap<>();
-    private final Map<String, Long> lastIntervalMap = new HashMap<>();
+    private final Map<String, UUID> lastTargetMap = new HashMap<>();
 
     public 杀戮光环(Anticheat plugin) {
         this.plugin = plugin;
@@ -39,44 +38,43 @@ public class 杀戮光环 implements Listener {
 
         if (!plugin.getConfig().getBoolean("detection.killaura.enabled")) return;
 
-        String key = attacker.getName();
         long now = System.currentTimeMillis();
         lastAttackMap.put(attacker, now);
 
-        // 记录攻击时间
-        Deque<Long> hitTimestamps = attackHistory.computeIfAbsent(key, k -> new ArrayDeque<>());
-        hitTimestamps.addLast(now);
-        while (!hitTimestamps.isEmpty() && now - hitTimestamps.peekFirst() > 1000) {
-            hitTimestamps.pollFirst();
-        }
-
-        // 检查攻击目标是否相同
-        String lastTarget = lastTargetMap.getOrDefault(key, "");
-        boolean sameTarget = lastTarget.equals(victim.getName());
-        lastTargetMap.put(key, victim.getName());
-
-        // 计算视角差
+        String key = attacker.getName();
         float currentYaw = attacker.getLocation().getYaw();
         float lastYaw = lastYawMap.getOrDefault(key, currentYaw);
         float yawDiff = Math.abs(currentYaw - lastYaw);
         lastYawMap.put(key, currentYaw);
 
-        // 计算攻击间隔一致性
-        long lastInterval = lastIntervalMap.getOrDefault(key, now);
-        long delta = now - lastInterval;
-        lastIntervalMap.put(key, now);
+        UUID victimId = victim.getUniqueId();
+        UUID lastTargetId = lastTargetMap.getOrDefault(key, null);
+        lastTargetMap.put(key, victimId);
 
-        boolean consistentInterval = delta > 30 && delta < 300;
-        boolean lowYawDiff = yawDiff < 3.0f;
+        boolean sameTarget = lastTargetId != null && lastTargetId.equals(victimId);
 
-        if (sameTarget && hitTimestamps.size() >= 6 && consistentInterval && lowYawDiff) {
+        // 引入 Raytrace 精准对准判断
+        Location attackerEye = attacker.getEyeLocation();
+        Vector direction = attackerEye.getDirection();
+        Location victimEye = victim.getEyeLocation();
+        Vector toVictim = victimEye.toVector().subtract(attackerEye.toVector()).normalize();
+        double dotProduct = direction.dot(toVictim);
+
+        boolean badAim = dotProduct < 0.95; // 视角未对准
+
+        // 检测攻击间隔（500ms 内多次攻击）
+        long lastTime = lastAttackMap.getOrDefault(attacker, 0L);
+        long interval = now - lastTime;
+        boolean tooFast = interval < 500;
+
+        if (sameTarget && yawDiff > 60.0f && badAim && tooFast && event.getDamage() > 0.1) {
             int vl = vlMap.getOrDefault(attacker, 0)
-                    + plugin.getConfig().getInt("detection.killaura.dummy-hit-vl", 1);
+                    + plugin.getConfig().getInt("detection.killaura.rotation-vl", 1);
             vlMap.put(attacker, vl);
 
             int limit = plugin.getConfig().getInt("detection.killaura.vl-limit", 5);
             String alert = "§d[Neko反作弊] §f玩家 §c" + attacker.getName()
-                    + " §f疑似 §6KillAura（锁定+稳定角度+固定节奏）§f，目前 §dVL §f= §c" + vl + " §7/ §a" + limit;
+                    + " §f疑似 §6KillAura（视角偏离目标+短时间高频攻击）§f，目前 §dVL §f= §c" + vl + " §7/ §a" + limit;
 
             sendColoredMessage(new String[]{alert});
             for (Player admin : Bukkit.getOnlinePlayers()) {
@@ -99,10 +97,8 @@ public class 杀戮光环 implements Listener {
         String name = event.getPlayer().getName();
         vlMap.remove(event.getPlayer());
         lastAttackMap.remove(event.getPlayer());
-        attackHistory.remove(name);
-        lastTargetMap.remove(name);
         lastYawMap.remove(name);
-        lastIntervalMap.remove(name);
+        lastTargetMap.remove(name);
     }
 
     private void startVLReduceTask() {
@@ -120,11 +116,6 @@ public class 杀戮光环 implements Listener {
                 }
             }
         }.runTaskTimer(plugin, ticks, ticks);
-    }
-
-    public boolean handleDummyCommand(CommandSender sender, String[] args) {
-        sender.sendMessage("§c该指令已废弃，杀戮光环检测已切换为无NPC多因素模式");
-        return true;
     }
 
     private void sendColoredMessage(String[] messages) {

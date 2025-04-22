@@ -35,7 +35,6 @@ public class 重载配置 implements CommandExecutor, TabCompleter {
             }
 
             杀戮光环 killaura = Anticheat.getInstance().get杀戮检测();
-            killaura.spawnNpcRing(target);
         }
 
         sender.sendMessage(ChatColor.RED + "用法: /nac reloa");
