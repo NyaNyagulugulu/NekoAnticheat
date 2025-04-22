@@ -8,4 +8,4 @@ api-version: 1.21
 commands:
   nac:
     description: 配置重载
-    usage: /nac reload 或
+    usage: /nac reload
